@@ -4,18 +4,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from telegram import Update
 from dotenv import load_dotenv
 import os
-import aiohttp
 from datetime import datetime, timedelta
-import ssl
-
-# настройки самоподписанного сертификата
-# создание клиентского SSL-контекста
-ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-# указываем пути к сертификату и ключу (если это требуется для твоего клиента)
-ssl_context.load_cert_chain(certfile="/etc/ssl/server.pem", keyfile="/etc/ssl/private/server.key")
-# отключи валидацию сертификата сервера
-ssl_context.check_hostname = False
-ssl_context.verify_mode = ssl.CERT_NONE
 
 # загружаем переменные окружения
 load_dotenv()

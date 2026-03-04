@@ -1,12 +1,12 @@
-# импорт библиотек
+# import module
 from dotenv import load_dotenv
 import os
 from openai import AsyncOpenAI
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 
-# загружаем переменные окружения
-load_dotenv(".env")
+# load enviroments
+load_dotenv()
 
 
 class Chunk:

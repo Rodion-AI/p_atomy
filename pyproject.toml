@@ -1,0 +1,14 @@
+[project]
+name = "p-atomy"
+version = "0.1.0"
+description = "AI-agent for company Atomy"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiogram>=3.26.0",
+    "dotenv>=0.9.9",
+    "faiss-cpu>=1.13.2",
+    "langchain-community>=0.4.1",
+    "langchain-openai>=1.1.10",
+    "openai>=2.24.0",
+]

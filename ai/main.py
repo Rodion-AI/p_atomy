@@ -11,7 +11,7 @@ from aiogram.client.default import DefaultBotProperties
 
 from dotenv import load_dotenv
 
-from core import Chunk
+from core import AI
 
 
 # --------------------
@@ -27,7 +27,7 @@ INACTIVITY_TIMEOUT = timedelta(minutes=10)
 
 user_sessions = {}
 
-chunk = Chunk()
+ai = AI()
 
 
 # --------------------
@@ -97,7 +97,7 @@ async def text_handler(message: Message):
     await message.bot.send_chat_action(message.chat.id, "typing") #type:ignore
 
     try:
-        answer = await chunk.get_answer_async(message.text) #type:ignore
+        answer = await ai.consult(message.text) #type:ignore
 
         session["remaining_requests"] -= 1
 

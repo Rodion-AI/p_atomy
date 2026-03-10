@@ -1,23 +1,23 @@
-# import module
+# import modules
 from dotenv import load_dotenv
-import os
 from openai import AsyncOpenAI
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
 
-# load enviroments
+# load environments
 load_dotenv()
 
 
-class Chunk:
+class AI:
 
     # Инициализация
     def __init__(self):
         self.client = AsyncOpenAI()
-        self.base_load()
+        self.load_base()
 
     # Загрузка базы знаний
-    def base_load(self):
+    def load_base(self):
+
         folder_path = "db"
         index_name = "db_from_atomy"
 
@@ -31,66 +31,53 @@ class Chunk:
         )
 
         self.system = """
-        Тебя зовут Лиза. Ты превосходный и дружелюбный нейро-консультант компании Атоми.
-        Ты консультируешь строго на основе переданной информации.
-        Не приветствуй клиента, ты уже это сделала.
-        Дай краткий, точный ответ.
-        Не упоминай документ и не добавляй ничего от себя.
-        Будь вежливой и можешь использовать эмодзи.
+        Тебя зовут Лиза. Ты дружелюбный нейро-консультант компании Атоми.
+
+        Источник знаний:
+        Ты отвечаешь только на основе информации,
+        переданной в предоставленном контексте.
+
+        Правила:
+        1. Используй только информацию из контекста.
+        2. Не добавляй информацию от себя и не делай предположений.
+        3. Если в контексте нет ответа, сообщи:
+           "К сожалению, в базе знаний нет информации по этому вопросу."
+        4. Если вопрос не относится к компании Атоми,
+           сообщи, что ты консультируешь только по продуктам и услугам компании.
+        5. Ответ должен быть кратким и точным (1–3 предложения).
+        6. Не приветствуй клиента.
+        7. Не упоминай контекст, документы, файлы или источник информации.
+        8. Будь вежливой и дружелюбной. Можно использовать один эмодзи.
         """
 
-    # Запрос к модели через новую Responses API
-    async def request(
-        self,
-        user_message: str,
-        model: str = "gpt-5-mini",
-        temperature: float = 0,
-    ) -> str:
+    # Основная функция консультации
+    async def consult(self, query: str) -> str:
 
         try:
-            response = await self.client.responses.create(
-                model=model,
-                temperature=temperature,
-                input=[
-                    {
-                        "role": "system",
-                        "content": self.system,
-                    },
-                    {
-                        "role": "user",
-                        "content": user_message,
-                    },
-                ],
-            )
-
-            return response.output_text
-
-        except Exception as e:
-            print(f"Ошибка при запросе в OpenAI: {e}")
-            return "Произошла ошибка при обработке запроса. Попробуйте позже."
-
-    # Основной метод для Telegram-бота
-    async def get_answer_async(self, query: str) -> str:
-
-        try:
-            # Получаем релевантные фрагменты
+            # поиск релевантных документов
             docs = self.db.similarity_search(query, k=4)
-            message_content = "\n".join([doc.page_content for doc in docs])
+            context = "\n".join(doc.page_content for doc in docs)
 
-            user_prompt = f"""
-            Ответь на вопрос клиента.
-            Не упоминай документ в ответе.
+            # формируем prompt
+            user_input = f"""
+            {self.system}
 
             Информация для ответа:
-            {message_content}
+            {context}
 
             Вопрос клиента:
             {query}
             """
 
-            answer = await self.request(user_prompt)
-            return answer
+            # запрос к модели
+            response = await self.client.responses.create(
+                model="gpt-5-mini-2025-08-07",
+                temperature=0,
+                input=user_input
+            )
+
+            return response.output_text
 
         except Exception as e:
-            print(f"Ошибка при обработке запроса: {e}")
+            print(f"AI error: {e}")
             return "Не удалось получить ответ. Попробуйте позже."

@@ -8,6 +8,8 @@
 * использует OpenAI Responses API
 * ограничивает пользователей лимитом 10 сообщений за 10 минут
 * автоматически сбрасывает лимиты
+* хранит историю диалога в `ai/memory.json` (независимо от рабочей директории запуска)
+* хранит 20 последних сообщений истории на пользователя
 * готов к быстрому развёртыванию через Docker
 
 ---
@@ -64,7 +66,12 @@ cp .env.example .env
 ```
 OPENAI_API_KEY=your_key
 tg_token=your_token
+MEMORY_FILE_PATH=memory.json
 ```
+
+Где:
+* `MEMORY_FILE_PATH` — файл для истории диалога (относительный путь считается от папки `ai`)
+* бот хранит 20 последних сообщений на пользователя (фиксированное значение по умолчанию)
 
 ---
 
@@ -97,6 +104,7 @@ docker run -d \
   --restart unless-stopped \
   -e OPENAI_API_KEY=your_key \
   -e tg_token=your_token \
+  -e MEMORY_FILE_PATH=memory.json \
   lambda19main/p_atomy:latest
 ```
 

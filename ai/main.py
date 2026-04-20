@@ -12,6 +12,7 @@ from aiogram.client.default import DefaultBotProperties
 from dotenv import load_dotenv
 
 from core import AI
+from memory import MemoryStore
 
 # --------------------
 # SETTINGS
@@ -20,6 +21,7 @@ from core import AI
 load_dotenv()
 
 TOKEN = os.getenv("tg_token")
+MEMORY_FILE_PATH = os.getenv("MEMORY_FILE_PATH", "memory.json")
 
 LIMIT_REQUESTS = 10
 INACTIVITY_TIMEOUT = timedelta(minutes=10)
@@ -27,6 +29,7 @@ INACTIVITY_TIMEOUT = timedelta(minutes=10)
 user_sessions = {}
 
 ai = AI()
+memory = MemoryStore(file_path=MEMORY_FILE_PATH)
 
 
 # --------------------
@@ -96,11 +99,12 @@ async def text_handler(message: Message):
     await message.bot.send_chat_action(message.chat.id, "typing") #type:ignore
 
     try:
-        answer = await ai.consult(message.text) #type:ignore
+        history = memory.get_history(user_id)
+        answer = await ai.consult(message.text, history=history) #type:ignore
 
         session["remaining_requests"] -= 1
-
         await message.answer(answer)
+        memory.add_pair(user_id, message.text, answer) #type:ignore
 
     except Exception as e:
         print(f"Ошибка: {e}")

@@ -1,11 +1,14 @@
 # import module
 import asyncio
+import contextlib
 import logging
 import os
 from datetime import datetime, timedelta
 
+from aiohttp import web
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message
+from aiogram.types import Update
 from aiogram.filters import CommandStart
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
@@ -23,6 +26,11 @@ from memory import MemoryStore
 load_dotenv()
 
 TOKEN = os.getenv("tg_token")
+WEBHOOK_HOST = os.getenv("WEBHOOK_HOST")
+WEBHOOK_PATH = os.getenv("WEBHOOK_PATH", "/telegram/webhook")
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
+APP_HOST = os.getenv("APP_HOST", "0.0.0.0")
+APP_PORT = int(os.getenv("APP_PORT", "8080"))
 LIMIT_REQUESTS = 10
 INACTIVITY_TIMEOUT = timedelta(minutes=10)
 
@@ -33,6 +41,7 @@ logger = logging.getLogger(__name__)
 
 ai = AI()
 memory = MemoryStore()
+scheduler_task: asyncio.Task | None = None
 
 
 # --------------------
@@ -69,6 +78,12 @@ async def scheduler():
         await asyncio.sleep(600)
         reset_limits()
         logger.info("Лимиты обновлены.")
+
+
+def get_webhook_url() -> str:
+    if not WEBHOOK_HOST:
+        raise RuntimeError("Не задан WEBHOOK_HOST для запуска webhook-режима.")
+    return f"{WEBHOOK_HOST.rstrip('/')}{WEBHOOK_PATH}"
 
 
 # --------------------
@@ -122,6 +137,8 @@ async def text_handler(message: Message):
 # --------------------
 
 async def main():
+    global scheduler_task
+
     bot = Bot(
         token=TOKEN, #type:ignore
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
@@ -131,11 +148,52 @@ async def main():
     dp.message.register(start_handler, CommandStart())
     dp.message.register(text_handler, F.text)
 
-    asyncio.create_task(scheduler())
+    scheduler_task = asyncio.create_task(scheduler())
 
-    logger.info("Бот запущен...")
-    await dp.start_polling(bot)
+    webhook_url = get_webhook_url()
+    await bot.set_webhook(
+        url=webhook_url,
+        secret_token=WEBHOOK_SECRET,
+        drop_pending_updates=True,
+    )
+    logger.info("Webhook установлен: %s", webhook_url)
 
+    async def webhook_handler(request: web.Request) -> web.Response:
+        if WEBHOOK_SECRET:
+            secret_header = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+            if secret_header != WEBHOOK_SECRET:
+                logger.warning("Отклонён запрос с некорректным webhook secret.")
+                return web.Response(status=403, text="Forbidden")
+
+        update_data = await request.json()
+        update = Update.model_validate(update_data, context={"bot": bot})
+        await dp.feed_update(bot, update)
+        return web.Response(status=200, text="ok")
+
+    async def health_handler(_: web.Request) -> web.Response:
+        return web.Response(status=200, text="ok")
+
+    app = web.Application()
+    app.router.add_post(WEBHOOK_PATH, webhook_handler)
+    app.router.add_get("/health", health_handler)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host=APP_HOST, port=APP_PORT)
+
+    logger.info("Бот запущен в webhook-режиме: http://%s:%s", APP_HOST, APP_PORT)
+    await site.start()
+
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await bot.delete_webhook(drop_pending_updates=False)
+        if scheduler_task:
+            scheduler_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await scheduler_task
+        await runner.cleanup()
+        await bot.session.close()
 
 if __name__ == "__main__":
     asyncio.run(main())

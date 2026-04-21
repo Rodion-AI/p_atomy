@@ -12,6 +12,7 @@
 * хранит 20 последних сообщений истории на пользователя
 * пишет логи в папку `logs/` в текущей рабочей директории с разделением на общий и error-лог
 * готов к быстрому развёртыванию через Docker
+* работает в webhook-режиме (без long polling)
 
 ---
 
@@ -67,6 +68,11 @@ cp .env.example .env
 ```
 OPENAI_API_KEY=your_key
 tg_token=your_token
+WEBHOOK_HOST=https://your-domain.example
+WEBHOOK_PATH=/telegram/webhook
+WEBHOOK_SECRET=strong_random_secret
+APP_HOST=0.0.0.0
+APP_PORT=8080
 ```
 
 Где:
@@ -83,6 +89,12 @@ tg_token=your_token
 cd ai
 uv run python main.py
 ```
+
+Где:
+* `WEBHOOK_HOST` — публичный HTTPS-домен (или туннель), доступный Telegram.
+* `WEBHOOK_PATH` — путь webhook-эндпоинта (по умолчанию `/telegram/webhook`).
+* `WEBHOOK_SECRET` — секрет для заголовка `X-Telegram-Bot-Api-Secret-Token`.
+* `APP_HOST` и `APP_PORT` — адрес и порт локального HTTP-сервера (по умолчанию `0.0.0.0:8080`).
 
 ---
 
@@ -105,9 +117,15 @@ mkdir -p docker-data
 docker run -d \
   --name atomy-bot \
   --restart unless-stopped \
+  -p 8080:8080 \
   -v $(pwd)/docker-data:/data \
   -e OPENAI_API_KEY=your_key \
   -e tg_token=your_token \
+  -e WEBHOOK_HOST=https://your-domain.example \
+  -e WEBHOOK_PATH=/telegram/webhook \
+  -e WEBHOOK_SECRET=strong_random_secret \
+  -e APP_HOST=0.0.0.0 \
+  -e APP_PORT=8080 \
   lambda19main/p_atomy:latest
 ```
 

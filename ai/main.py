@@ -198,11 +198,19 @@ async def main():
         await asyncio.Event().wait()
     finally:
         await bot.delete_webhook(drop_pending_updates=False)
+        await runner.cleanup()
+
+        if in_flight_updates:
+            logger.info(
+                "Ожидание завершения %s webhook-задач перед остановкой.",
+                len(in_flight_updates),
+            )
+            await asyncio.gather(*in_flight_updates, return_exceptions=True)
+
         if scheduler_task:
             scheduler_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await scheduler_task
-        await runner.cleanup()
         await bot.session.close()
 
 if __name__ == "__main__":

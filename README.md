@@ -11,7 +11,6 @@ The bot:
 * stores chat history in `memory.json` in the current working directory
 * keeps the last 20 history messages per user
 * writes logs to the `logs/` folder in the current working directory, split into general and error logs
-* is ready for fast deployment via Docker
 * runs in webhook mode (without long polling)
 
 ---
@@ -23,7 +22,6 @@ The bot:
 * OpenRouter Chat Completions API (without SDK)
 * FAISS (langchain)
 * uv
-* Docker
 
 ---
 
@@ -143,49 +141,6 @@ curl https://<your-tunnel-domain>/health
 ```
 
 Expected response: `ok`.
-
----
-
-## Deployment via Docker (recommended)
-
-A ready-to-use image is published on Docker Hub.
-
-### Pull the image
-
-```bash
-docker pull lambda19main/p_atomy:1.0.0
-```
-
----
-
-### Run the container
-
-```bash
-mkdir -p docker-data
-docker run -d \
-  --name atomy-bot \
-  --restart unless-stopped \
-  -p 8080:8080 \
-  -v $(pwd)/docker-data:/data \
-  -e OPENROUTER_API_KEY=your_key \
-  -e tg_token=your_token \
-  -e WEBHOOK_HOST=https://your-domain.example \
-  -e WEBHOOK_PATH=/telegram/webhook \
-  -e WEBHOOK_SECRET=strong_random_secret \
-  -e APP_HOST=0.0.0.0 \
-  -e APP_PORT=8080 \
-  -e OPENROUTER_MODEL=openai/gpt-4.1-mini \
-  lambda19main/p_atomy:1.0.0
-```
-
-#### Important
-
-* `--restart unless-stopped` ensures automatic restart on failure
-* environment variables are passed directly via `-e`
-* the `.env` file is not used inside the container
-* with `-v $(pwd)/docker-data:/data`, memory is persisted on the host as `docker-data/memory.json`
-* with `-v $(pwd)/docker-data:/data`, logs are persisted on the host in `docker-data/logs/` even if the container crashes/is recreated
-* the image is ready to run without additional build steps
 
 ---
 
